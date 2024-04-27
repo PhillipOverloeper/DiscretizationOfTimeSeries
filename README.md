@@ -1,1 +1,3 @@
 # DiscretizationOfTimeSeries
+
+Work in Progress
