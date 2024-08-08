@@ -1,0 +1,8 @@
+/Plots
+/logs
+/Models/
+/Data
+__pychache__/
+experiments
+lightning_logs/
+notebooks/
