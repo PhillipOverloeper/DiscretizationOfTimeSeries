@@ -1,0 +1,20 @@
+{
+    "learning_rate": 0.01,
+    "max_epoch": 1,
+
+    "SparsityTarget1": 0.1,
+    "SparsityTarget2": 0.1,
+    "SparsityTarget3": 0.15,
+    "SparsityCost1": 0.0,
+    "SparsityCost2": 0.0,
+    "SparsityCost3": 0.15,
+
+    "sigma": 0.3,
+    "dim1": 520,
+    "dim2": 240,
+    "dim3": 30,
+
+    "configuration": "gbbb",
+    "method": "bengio"
+
+}

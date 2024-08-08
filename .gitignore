@@ -2,7 +2,10 @@
 /logs
 /Models/
 /Data
+/venv
 __pychache__/
 experiments
 lightning_logs/
 notebooks/
+CatVAE_datamodule.py
+CatVAE_experimentstool.py

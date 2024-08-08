@@ -1,0 +1,14 @@
+{
+    "input_dim": 3,
+    "hidden_dim": 32 ,
+    "latent_dim": 16,
+    "activation_function": "relu",
+    "som_dim6": [4, 3],
+    "learning_rate": 0.005,
+    "num_epochs": 1,
+    "alpha": 1.0,
+    "beta": 1.0,
+    "gamma": 0,
+    "tau": 0,
+    "decay_factor": 0.9
+}
