@@ -5,12 +5,11 @@ import numpy as np
 import denta
 from pathlib import Path
 from plots import plot_states
-from CatVAE import exec_catvae
+from CatVAE import exec_catvae, instantiate_catvae, compute_mse_error
 from SOMVAE import train_somvae, anomaly_detection, instantiate_somvae
 from tensorboardX import SummaryWriter
 from automaton_learning import extract_events
-from utils import (create_folders, preprocess_data, create_association_dict,
-                   compute_discretization_precision, compute_purity,
+from utils import (create_folders, preprocess_data, compute_purity,
                    preprocess_data_anom, composite_f1_score, split_data)
 
 torch.manual_seed(2)
@@ -153,7 +152,7 @@ def run_somvae(data_name, ratio, logging):
     print('Number of State Changes: ', len(changes))
 
     # Plot the data and the state labels and borders
-    fig = plot_states(valid_data, valid_states, valid_time, state_names, latent_data,'somvae', data_name)
+    fig = plot_states(valid_data, valid_states, valid_time, state_names, latent_data, 'somvae', data_name)
 
     if logging:
         writer.add_scalar("Purity", purity)
@@ -167,7 +166,7 @@ def run_catvae(data_name, ratio, logging):
 
     Args:
         data_name (str): Name of the folder where data is stored.
-        split (float): Split ratio for train/validation.
+        ratio (float): Split ratio for train/validation.
         logging (bool): Whether the training shall be logged in Tensorboard.
 
     Returns:
@@ -210,7 +209,7 @@ def main_anomdetect(data_name, split, logging, anomalies, threshold):
     while selected_option is None:
         # Display the options for the user to choose from
         print('Select an option:')
-        print('1. RBM')
+        print('1. DENTA')
         print('2. SOMVAE')
         print('3. CatVAE')
 
@@ -218,7 +217,7 @@ def main_anomdetect(data_name, split, logging, anomalies, threshold):
         choice = input(' Please enter the number of the desired option (1/2/3): ')
 
         if choice == '1':
-            selected_option = 'rbm'                 # User chose RBM
+            selected_option = 'denta'               # User chose DENTA
             break
         elif choice == '2':
             selected_option = 'somvae'              # User chose SOMVAE
@@ -229,25 +228,25 @@ def main_anomdetect(data_name, split, logging, anomalies, threshold):
         else:
             print('Invalid input. Please choose 1, 2, or 3.')
 
-    if selected_option == 'rbm':
-        # please implement your stuff in the according function
+    if selected_option == 'denta':
+        # Compute composite f1 score
         composite_f1 = run_ad_rbm(data_name, split, logging, anomalies, threshold)
         print(composite_f1)
 
     elif selected_option == 'somvae':
-        # please implement your stuff in the according function
+        # Compute composite f1 score
         composite_f1 = run_ad_somvae(data_name, split, logging, anomalies, threshold)
         print(composite_f1)
 
     elif selected_option == 'catvae':
-        # please implement your stuff in the according function
+        # Compute composite f1 score
         composite_f1 = run_ad_catvae(data_name, split, logging, anomalies, threshold)
         print(composite_f1)
 
     else:
         raise ValueError('Invalid option. This should not happen though :)')
 
-# TODO: Implement your Anomaly Detection please
+
 def run_ad_rbm(data_name, split, logging, anomalies, threshold):
     fscore_arr = []
     # loop over anmomaly file names
@@ -255,18 +254,16 @@ def run_ad_rbm(data_name, split, logging, anomalies, threshold):
         # return of training data, idx of fault injection, indices of the complete anomalous time
         data, state_list, start_event_idx, true_anom_idx = preprocess_data_anom(anom_name)
         # check out whether your mehod is detecting an anomaly
-        # TODO: HERE COMES YOUR METHOD FOR ANOMALY DETECTION!!
 
-
-        # something above threshold ? Anomaly indicated with 0.5 in array and otherwise 0
         # anom_labels = np.where(np.array(some_mse_from_someone) < threshold, .5 , 0)
         # calculation of composite f1 score
-        # comp_f1_score = composite_f1_score(anom_labels=anom_labels, start_event_idx=start_event_idx, true_anom_idx=true_anom_idx)
+        # comp_f1_score = composite_f1_score(anom_labels=anom_labels, start_event_idx=start_event_idx,
+        # true_anom_idx=true_anom_idx)
         # append to array and return as mean over all detected anomalies
         # fscore_arr.append(comp_f1_score)
     return np.mean(fscore_arr)
 
-# TODO: Implement your Anomaly Detection please
+
 def run_ad_somvae(data_name, split, logging, anomalies, threshold):
     fscore_arr = []
     model_path = os.path.expanduser(f'~/{str(Path.cwd().relative_to(Path.home()))}/'
@@ -277,36 +274,35 @@ def run_ad_somvae(data_name, split, logging, anomalies, threshold):
     mse_nominal = anomaly_detection(train, model)
 
     threshold = np.mean(mse_nominal) + 0.1 * np.std(mse_nominal)
-    # loop over anmomaly file names
+    # Loop over anmomaly file names
     for anom_name in anomalies:
         # return of training data, idx of fault injection, indices of the complete anomalous time
         data, state_list, start_event_idx, true_anom_idx = preprocess_data_anom(anom_name)
-        #data = torch.tensor(data.values, dtype=torch.float64)
-
         mse_error = anomaly_detection(data, model)
-        # check out whether your mehod is detecting an anomaly
-        # TODO: HERE COMES YOUR METHOD FOR ANOMALY DETECTION!!
 
-
-        # something above threshold ? Anomaly indicated with 0.5 in array and otherwise 0
+        # Get labels
         anom_labels = np.where(np.array(mse_error) > threshold, .5 , 0)
-        # calculation of composite f1 score
+        # Calculation of composite f1 score
         comp_f1_score = composite_f1_score(anom_labels=anom_labels, start_event_idx=start_event_idx, true_anom_idx=true_anom_idx)
-        # append to array and return as mean over all detected anomalies
+        # Append to array and return as mean over all detected anomalies
         fscore_arr.append(comp_f1_score)
-        print(comp_f1_score)
+
     return np.mean(fscore_arr)
 
 
 def run_ad_catvae(data_name, split, logging, anomalies, threshold):
     fscore_arr = []
+    model_path = os.path.expanduser(f'~/{str(Path.cwd().relative_to(Path.home()))}/'
+                                    f'Models/simu_Tank/catvae/model')
+    model = instantiate_catvae()
+    model.load_state_dict(torch.load(model_path).state_dict())
+
     # Loop over anmomaly file names
     for anom_name in anomalies:
         # Return of training data, idx of fault injection, indices of the complete anomalous time
         data, state_list, start_event_idx, true_anom_idx = preprocess_data_anom(anom_name)
         # Check out whether your mehod is detecting an anomaly
-        _, _, _, likelihood, mse_error = exec_catvae(data_name=data_name, train=data,
-                                                     selected_option='catvae')
+        _, _, _, likelihood, mse_error = compute_mse_error(model, train=data)
 
         # Something above threshold ? Anomaly indicated with 0.5 in array and otherwise 0
         anom_labels = np.where(np.array(likelihood) < threshold, .5, 0)
@@ -328,9 +324,9 @@ if __name__ == '__main__':
     # anomaly_scearios_tank = None
     # Define some threshold to detect an anomaly
     anom_threshold = -200
-    a = False
+    anom_detection = False
 
-    if not a:
+    if not anom_detection:
         main(split=0.75, data_name='Tank', logging=False)
         main(split=0.75, data_name='Siemens', logging=False)
         main(split=0.75, data_name='simu_tank', logging=False)  # the Steude et. al dataset

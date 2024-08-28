@@ -197,4 +197,17 @@ def exec_catvae(data_name, train_data, valid_data, writer=None):
     latent_data, _ = model.discret_comp(valid_data)
 
     return latent_data
+
+
+def instantiate_catvae():
+
+    with open(f'.Hyperparameters/hparams-simu_tank.yaml') as f:
+        hparam = yaml.safe_load(f)
+    model = CategoricalVAE(hparams=hparam["hparams"])
+    return model
+
+
+def compute_mse_error(model, train):
+
+    likelihood, mse_error = model.anom_detect(x=torch.tensor(train.values, dtype=torch.float).to(device='cuda'))
     

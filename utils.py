@@ -205,69 +205,6 @@ def compute_purity(cluster_assignments, class_assignments):
     return purity
 
 
-def create_association_dict(disc_cats, real_cats):
-    """
-    Compute a dictionary of associated items from "real" expert defined states/categories
-    to discretized states from ML models
-
-    Parameters:
-    - disc_cats (Dataframe): In this case the expert knowledge is given by strings
-    - real cats (Dataframe): Dataframe of discretized data into categories given from the ML models
-
-    Returns:
-    - dict_states_char: Returns dictionary from real categories to its associated discretized categories from ML models
-    - df_merge_fqitems_dummies: Returns one hot encoded dataframe of categories
-    """
-
-    df_merge_fqitems = pd.DataFrame()
-    df_merge_fqitems['real'] = real_cats
-    df_merge_fqitems['disc'] = disc_cats
-    # one hot encode categories as suitable input for fpgrowth method
-    df_merge_fqitems_dummies = pd.get_dummies(df_merge_fqitems, columns=['disc', 'real'])
-    # Association learning with FPGrowth
-    frequent_itemsets = fpgrowth(df_merge_fqitems_dummies, min_support=.00005, use_colnames=True)
-    # Generate association rules from frequent itemsets
-    rules = association_rules(frequent_itemsets, metric="support", min_threshold=0.08)
-    # Just use rules indicating from real to discretized values and not the other way round
-    real_columns = [col for col in df_merge_fqitems_dummies.columns if 'real' in col]
-    true_rules_bool = pd.DataFrame([rules[rules.columns[0]] == frozenset({f'{comp}'})
-                                    for comp in real_columns]).T.any(axis=1)
-    true_rules = rules[true_rules_bool.values]
-    # create dictionary with the relation of which real category goes to which discretized category/categories
-    states_disc = list(true_rules[true_rules.columns[0]].apply(lambda x: ', '.join(list(x))).astype("unicode"))
-    res_disc = list(true_rules[true_rules.columns[1]].apply(lambda x: ', '.join(list(x))).astype("unicode"))
-    df_disc = pd.DataFrame({"states_disc": states_disc, "res_disc": res_disc})
-    states_dict = df_disc.groupby('states_disc')['res_disc'].apply(list).to_dict()
-    for _ in list(states_dict.keys()):
-        dict_states_char = {key: value for key, value in states_dict.items()}
-    return dict_states_char, df_merge_fqitems_dummies
-
-
-def compute_discretization_precision(dict_states_char, df_merge_fqitems_dummies):
-    """
-    Compute discretization precision between expert and model classifications.
-
-    Parameters:
-    - dict_states_char (dict): Dictionary from real categories to its associated discretized categories from ML models
-    - df_merge_fqitems_dummies (Dataframe): Returns one hot encoded dataframe of categories
-
-    Returns:
-    - precision: Returns precision metric as the percentage of correct predictions over the total number of rows
-    """
-
-    correct_predictions = 0
-    # Iterate over each row in the dataset
-    for index, row in df_merge_fqitems_dummies.iterrows():
-        # Check if the row matches all rules in the dictionary
-        matches_all_rules = any(any(row[col] for col in disc_cols) for real_col, disc_cols in dict_states_char.items())
-        # If the row matches all rules, increment the counter
-        if matches_all_rules:
-            correct_predictions += 1
-    # Calculate precision as the percentage of correct predictions over the total number of rows
-    precision = (correct_predictions / len(df_merge_fqitems_dummies)) * 100
-    return precision
-
-
 def split_data(time, data, states, ratio=0.8):
 
     split_index = int(time.shape[0] * ratio)
